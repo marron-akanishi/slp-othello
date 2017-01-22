@@ -20,12 +20,12 @@ void brd_output(Board brd);	// 盤面の出力
 void player(Board *brd, Piece wh, bool *pass);	// プレイヤの処理
 void hand_input(Hand *hand);	// 打ち手の入力
 bool brd_turn(Board *brd, Hand hand);	// 盤面の更新
-int brd_turn_dir(Board *brd, Hand hand, int dx, int dy);	// 指定方向への走査
 bool end_check(Board brd);	// 終了の判定
-Piece cell_val(Board brd, int x, int y);	// 指定位置のマスの状態
 Piece winner_check(Board brd);	// 勝敗の判定
-bool pass_check(Board brd, Piece wh);	// パスの判定
 
+bool pass_check(Board brd, Piece wh);	// パスの判定
+int brd_turn_dir(Board *brd, Hand hand, int dx, int dy);	// 指定方向への走査
+Piece cell_val(Board brd, int x, int y);	// 指定位置のマスの状態
 
 int main(void){
     //var
@@ -46,6 +46,10 @@ int main(void){
 		brd_output(brd);
         if ( passBLK && passWHT ) break;	// パスによる終了の判定
     }
+
+    //-- 勝敗判定
+	winner = winner_check(brd);
+	( winner == BLK ) ? printf("黒の勝ち\n") :  printf("白の勝ち\n");
 
     return 0;
 }
@@ -97,7 +101,7 @@ void player(Board *brd, Piece wh, bool *pass) {
 		//-- 打ち手入力
 		hand_input(&hand);
 		//-- 盤面更新
-		brd->cell[hand.x][hand.y] = wh;
+        if(!brd_turn(brd,hand)) printf("置けませんでした...\n");
 		// 盤面の更新と判定
 		break;
 	}
@@ -128,6 +132,71 @@ void hand_input(Hand *hand) {
 	hand->y = y;
 }
 
+bool brd_turn(Board *brd, Hand hand) {
+	//-- 宣言
+	int count = 0;	// ひっくり返した駒の数
+
+	//-- 打つ位置がEMPでないなら失敗
+	if ( cell_val(*brd, hand.x, hand.y) != EMP ) { return false; }
+
+	//-- 打つ位置から上下左右斜め８方向への走査
+	for(int x = -1;x < 2;x++){
+        for(int y = -1;y < 2;y++){
+            if(x == 0 && y == 0) continue;
+            count += brd_turn_dir(brd, hand, x, y);
+        }
+    }
+
+	//-- 駒をひっくり返せなければ失敗
+	if ( count == 0 ) { return false; }
+
+	//-- 返却
+	return true;
+}
+
+int brd_turn_dir(Board *brd, Hand hand, int dx, int dy) {
+	//-- 宣言
+	int tx = hand.x;	// 現在位置
+	int ty = hand.y;	// 現在位置
+	Piece wh = hand.color;	// 自分の駒
+	int len = 0;	// 相手の駒の連長
+
+	//-- はさんでいるか判定
+	while ( 1 ) {
+		//- 現在位置を指定方向に更新
+        tx += dx;
+        ty += dy;
+		//- 現在位置が相手の駒なら連長を増分
+        if(brd->cell[tx][ty] != wh && brd->cell[tx][ty] != EMP){
+            tx += dx;
+            ty += dy;
+            continue;
+        }
+		//- 連長が正で自分の駒なら打ち切り
+        if(tx >= 0 && ty >= 0 && brd->cell[tx][ty] == wh) break;
+		//- どちらでもない(盤外か空マス)なら0を返す
+        if(tx < 0 || ty <= 0 || brd->cell[tx][ty] == EMP) return 0;
+	}
+
+	//-- 駒をひっくり返す
+	while ( 1 ) {
+		//- 現在位置から指定方向の逆へ更新
+        tx -= dx;
+        ty -= dy;
+		//- 駒が相手の駒でないなら打ち切り
+        if(brd->cell[tx][ty] == wh) break;
+		//- 自分の駒に更新
+        brd->cell[tx][ty] = wh;
+        len++;
+	}
+
+	//-- 打つ位置に自分の駒を置く
+	brd->cell[hand.x][hand.y] = wh;
+
+	//-- 返却
+	return len;
+}
+
 bool end_check(Board brd) {
 	int x, y;
 	for ( x = 0; x < SIZE; x++ ) {
@@ -138,4 +207,23 @@ bool end_check(Board brd) {
 		}
 	}
 	return true;    // EMPがなければ終了
+}
+
+Piece winner_check(Board brd) {
+	//-- 宣言
+	int x, y;	// 反復変数
+	int black, white;	// 駒の数
+	black = white = 0;
+
+	//-- カウント
+	for ( x = 0; x < SIZE; x++ ) {
+		for ( y = 0; y < SIZE; y++ ) {
+            if(brd.cell[x][y] == BLK) black++;
+            else if(brd.cell[x][y] == WHT) white++;
+		}
+	}
+
+	//-- 多いほうを返却
+    if(white > black) return BLK;
+    else return WHT;
 }
