@@ -168,14 +168,14 @@ int brd_turn_dir(Board *brd, Hand hand, int dx, int dy, bool check) {
         tx += dx;
         ty += dy;
 
-        //ひとつ先が自分かどうかを見る
-        if(cell_val(*brd,tx+dx,ty+dy) == wh) return 0; 
-
         //- 駒でないなら0を返す、相手なら連長追加
         if(cell_val(*brd,tx,ty) == OUT || cell_val(*brd,tx,ty) == EMP) return 0;
         else if(cell_val(*brd,tx,ty) != wh) len++;
         //- 連長が正で自分の駒なら打ち切り
-        if(len > 0 && cell_val(*brd,tx,ty) == wh) break;
+        if(cell_val(*brd,tx,ty) == wh){
+            if(len > 0) break;
+            else return 0;
+        }
     }
 
     //-- 駒をひっくり返す
